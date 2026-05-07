@@ -1,12 +1,14 @@
 # An sqlite db for storing any expenses I made.
 
 import sqlite3
+import os
 import json
-from datetime import datetime, UTC
+from datetime import datetime, timezone
 from pathlib import Path
 
 # database file will live in this location within docker container
-DB_PATH = Path("/data/expense.db")
+# DB_PATH = Path("/data/expenses.db")
+DB_PATH = Path(os.environ.get("DB_PATH","./expenses.db"))
 
 def get_db() -> sqlite3.Connection:
     DB_PATH.parent.mkdir(parents=True,exist_ok=True)
@@ -37,13 +39,13 @@ def get_all_expenses(limit: int=50, offset: int=0) -> list[dict]:
 
 def get_expense(expense_id: int ) -> dict | None:
     conn = get_db()
-    row = conn.execute("SELECT * FROM expenses WHERE id=?",(expense_id)).fetchone()
+    row = conn.execute("SELECT * FROM expenses WHERE id = ?",(expense_id,)).fetchone()
     conn.close()
     return dict(row) if row else None
 
 def get_summary(days: int=30) -> dict:
     conn = get_db()
-    cutoff = datetime.now(UTC).isoformat()[:10]
+    cutoff = datetime.now(timezone.utc).isoformat()[:10]
     rows = conn.execute(
         """SELECT category, SUM(amount) as total_spent, COUNT(*) as count
         FROM expenses
@@ -66,7 +68,7 @@ def save_expense(transcript: str,amount: float,
     cursor = conn.execute(
         """INSERT INTO expenses (created_at, transcript, amount, store, category, notes, raw_response)
         VALUES(?,?,?,?,?,?,?)""",
-        (datetime.now(UTC).isoformat(), transcript, amount, store,
+        (datetime.now(timezone.utc).isoformat(), transcript, amount, store,
         category, notes, raw_response,
         )
     )
