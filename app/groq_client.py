@@ -46,12 +46,13 @@ Output format must be exactly:
 Rules:
 1. Always return an array. If multiple expenses are mentioned, create multiple objects.
 2. "amount" MUST be a number (float), never a string. Example: 23.50, not "23.50".
-3. "category" must be exactly one of: groceries, food, transport, entertainment, shopping, bills, health, education, other.
+3. "category" must be exactly one of: groceries, food, junk (basically unhealthy snacks which aren't beneficial to health), transport, entertainment, shopping, bills, health, education, other.
 4. "store" = business name if clearly mentioned (Costco, Walmart, Green Fresh, Uber, etc.), otherwise null.
-5. "notes" = short context if useful, otherwise null. Keep it very brief.
+5. "notes" = should ALWAYS describe what was bought (items, quantities) when mentioned, if you judge them as useful, null if no relevatn details given.
 6. If amount is unclear, make your best guess and put "uncertain" in notes.
 7. If one store has items from multiple categories and amounts aren't split, assign the full amount to the most appropriate category and put the rest as 0 or split logically if obvious.
 8. If no expenses are mentioned at all, return {"expenses": []}
+9. Think step by step.
 
 Only output the JSON. No other text."""
     last_error=None
