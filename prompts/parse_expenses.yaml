@@ -1,0 +1,5 @@
+name: parse_expenses
+version: 1
+model: llama-3.3-70b-versatile
+temperature: 0.1
+prompt_file: parse_expenses.md

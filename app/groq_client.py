@@ -1,6 +1,7 @@
 """ Use the Groq API client for Whisper transcription + Llama expense parsing."""
 
-import os, json, httpx
+import os, json, httpx, yaml
+from pathlib import Path
 
 API_KEY             = os.environ["GROQ_API_KEY"]
 BASE_URL            = "https://api.groq.com/openai/v1"
@@ -9,6 +10,19 @@ TRANSCRIPTION_MODEL = "whisper-large-v3-turbo"
 
 #  LLM_MODEL           = "llama-3.3-70b-versatile"
 FALLBACK_LLM_MODEL  = ["llama-3.3-70b-versatile", "meta-llama/llama-4-scout-17b-16e-instruct"] 
+
+PROMPTS_DIR = Path(__file__).parent.parent/"prompts"
+
+def load_prompt(name: str) -> dict:
+    config_path = PROMPTS_DIR / f"{name}.yaml"
+    with open(config_path) as f:
+        config = yaml.safe_load(f)
+    
+    prompt_path = PROMPTS_DIR / config["prompt_file"]
+    with open(prompt_path) as f:
+        config["system"] = f.read()
+    
+    return config
 
 async def transcribe_audio(audio_bytes: bytes, filename: str) -> dict:
     async with httpx.AsyncClient(timeout=120.0) as client:
@@ -29,33 +43,10 @@ async def transcribe_audio(audio_bytes: bytes, filename: str) -> dict:
         }
     
 async def parse_expense(transcript: str) -> dict:
-    prompt = """You are an expert expense parser. Your job is to extract all expenses from the user's message and output **only** a valid JSON object. Never add explanations, markdown, or any text outside the JSON.
-
-Output format must be exactly:
-{
-  "expenses": [
-    {
-      "amount": 10.0,
-      "store": "Green Fresh",
-      "category": "groceries",
-      "notes": "A biweekly snack run"
-    }
-  ]
-}
-
-Rules:
-1. Always return an array. If multiple expenses are mentioned, create multiple objects.
-2. "amount" MUST be a number (float), never a string. Example: 23.50, not "23.50".
-3. "category" must be exactly one of: groceries, food, junk (basically unhealthy snacks which aren't beneficial to health), transport, entertainment, shopping, bills, health, education, other.
-4. "store" = business name if clearly mentioned (Costco, Walmart, Green Fresh, Uber, etc.), otherwise null.
-5. "notes" = should ALWAYS describe what was bought (items, quantities) when mentioned, if you judge them as useful, null if no relevatn details given.
-6. If amount is unclear, make your best guess and put "uncertain" in notes.
-7. If one store has items from multiple categories and amounts aren't split, assign the full amount to the most appropriate category and put the rest as 0 or split logically if obvious.
-8. If no expenses are mentioned at all, return {"expenses": []}
-9. Think step by step.
-
-Only output the JSON. No other text."""
-    last_error=None
+    prompt_config = load_prompt("parse_expenses")
+    system_prompt = prompt_config["system"]
+    temperature = prompt_config["temperature"]
+    errors = []
 
     for model in FALLBACK_LLM_MODEL:
         try:
@@ -69,10 +60,10 @@ Only output the JSON. No other text."""
                     json={
                         "model":model,
                         "messages": [
-                            {"role":"system","content": prompt},
+                            {"role":"system","content": system_prompt},
                             {"role":"user","content":f"Parse this expense:\n\n {transcript}"}
                         ],
-                        "temperature": 0.1,
+                        "temperature": temperature,
                     }
                 )
                 resp.raise_for_status()
@@ -84,7 +75,7 @@ Only output the JSON. No other text."""
                 return json.loads(content)
             
         except Exception as e:
-            last_error = e
+            errors.append(f"{model}: {type(e).__name__}: {e}")
             continue
     
-    raise Exception(f"All models failed. Last error: {last_error}")
+    raise Exception("All models failed. collective errors \n:".join(errors))
