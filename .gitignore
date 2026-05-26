@@ -1,8 +1,9 @@
 .env
-terraform/*.tfvars
-terraform/.terraform/
-terraform/*.tfstate*
-terraform/*.pem
+infra/*.tfvars
+infra/.terraform/
+infra/*.tfstate*
+infra/*.pem
+infra/tfplan
 __pycache__/
 *.pyc
 *.db
