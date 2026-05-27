@@ -25,4 +25,4 @@ services:
 volumes:
   notes-data:
   caddy-data:
-  caddy-config
+  caddy-config:
