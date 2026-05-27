@@ -51,6 +51,25 @@ resource "oci_core_default_security_list" "voice_notes" {
       max = 8080
     }
   }
+# Allow HTTP (port 80) — needed for Let's Encrypt + redirects
+  ingress_security_rules {
+    source   = "0.0.0.0/0"
+    protocol = "6"  # 6 = TCP
+    tcp_options {
+      min = 80
+      max = 80
+    }
+  }
+
+# Allow HTTPS (port 443) — main public traffic
+  ingress_security_rules {
+    source   = "0.0.0.0/0"
+    protocol = "6"  # 6 = TCP
+    tcp_options {
+      min = 443
+      max = 443
+    }
+  }
 }
 resource "oci_core_subnet" "voice-notes" {
   compartment_id = var.tenancy_ocid
