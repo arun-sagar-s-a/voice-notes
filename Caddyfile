@@ -1,3 +1,3 @@
-voice-notes.duckdns.org{
+voice-notes.duckdns.org {
     reverse_proxy voice-notes:8000
 }
