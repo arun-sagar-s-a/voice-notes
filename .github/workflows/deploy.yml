@@ -27,6 +27,7 @@ jobs:
             --exclude '.env' \
             --exclude '__pycache__' \
             --exclude '*.db' \
+            --exclude 'compose.override.yaml' \
             -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
             ./ ubuntu@${{ secrets.OCI_VM_IP }}:~/voice-notes/
 

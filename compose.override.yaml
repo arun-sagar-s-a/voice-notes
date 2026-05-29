@@ -1,0 +1,6 @@
+# Local development only. Auto-merged on top of compose.yaml by `docker compose up`.
+# Exposes the app directly on localhost so you can skip the Caddy/HTTPS layer locally.
+services:
+  voice-notes:
+    ports:
+      - "8080:8000"
