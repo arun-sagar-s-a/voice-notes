@@ -1,0 +1,48 @@
+name: Deploy to Oracle VM
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+    
+      - name: Set up SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.OCI_SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "${{ secrets.OCI_VM_IP }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Copy files onto VM
+        run: |
+          rsync -avz --delete \
+            --exclude '.git' \
+            --exclude 'infra' \
+            --exclude '.github' \
+            --exclude '.env' \
+            --exclude '__pycache__' \
+            --exclude '*.db' \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
+            ./ ubuntu@${{ secrets.OCI_VM_IP }}:~/voice-notes/
+
+      - name: Write .env and redeploy
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            ubuntu@${{ secrets.OCI_VM_IP }} \
+            "cd ~/voice-notes && \
+             echo 'GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}' > .env && \
+             echo 'DB_PATH=/data/expenses.db' >> .env && \
+             docker compose up -d --build && \
+             docker image prune -f"
+
+      - name: Verify deployment
+        run: |
+          sleep 10
+          curl -sf https://voice-notes.duckdns.org/docs > /dev/null \
+            && echo " Deployment healthy" \
+            || echo " Health check failed — app may still be starting"
