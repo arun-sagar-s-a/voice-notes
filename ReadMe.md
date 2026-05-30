@@ -2,6 +2,8 @@
 
 Speak an expense out loud, get it parsed into structured data and stored automatically.
 
+![Voice Expense Tracker](docs/images/voice-note-page-root.png)
+
 Record audio like *"spent 40 dollars at Costco on groceries and 12 on coffee at the cafe"* → Whisper transcribes it → Llama extracts each expense into `{amount, store, category, notes}` → everything is saved to SQLite and queryable by API. One recording can contain multiple expenses; each becomes its own row.
 
 **Live:** https://voice-notes.duckdns.org/docs
