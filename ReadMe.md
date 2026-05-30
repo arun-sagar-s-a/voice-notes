@@ -160,7 +160,7 @@ voice-notes/
 
 ## Roadmap
 
-- [ ] Simple web frontend (record button → results)
+- [ done ] Simple web frontend (record button → results)
 - [ ] LLM observability (trace prompts, latency, token usage)
 - [ ] Evals for the expense-parsing prompt
 - [ ] Automated SQLite backups

@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Voice Expense Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Newsreader:ital,opsz@0,6..72;1,6..72&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #eef3f3;   /* soft cool white, faint teal tint */
+    --surface:   #f9fbfb;   /* lighter card */
+    --ink:       #14302f;   /* deep teal-black */
+    --ink-soft:  #5c706e;   /* muted slate-teal */
+    --line:      #d6e2e1;   /* cool hairline */
+    --clay:      #0d6e6e;   /* deep ocean teal accent */
+    --clay-soft: #6bb0ac;
+    --rec:       #c0492f;   /* recording red (kept warm for contrast/clarity) */
+    --radius: 14px;
+    --shadow: 0 1px 2px rgba(20,48,47,.04), 0 8px 24px rgba(20,48,47,.07);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Newsreader', Georgia, serif;
+    font-size: 18px;
+    line-height: 1.5;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 48px 20px 80px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { width: 100%; max-width: 560px; }
+
+  header { text-align: center; margin-bottom: 44px; }
+
+  h1 {
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    font-size: 38px;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+  }
+  h1 .dot { color: var(--clay); }
+
+  .tagline {
+    color: var(--ink-soft);
+    font-style: italic;
+    margin-top: 8px;
+    font-size: 18px;
+  }
+
+  /* ---- recorder ---- */
+  .recorder { display: flex; flex-direction: column; align-items: center; gap: 16px; margin-bottom: 16px; }
+
+  .rec-btn {
+    width: 92px; height: 92px;
+    border-radius: 50%;
+    border: none;
+    background: var(--clay);
+    color: #fff;
+    cursor: pointer;
+    display: grid; place-items: center;
+    box-shadow: var(--shadow);
+    transition: transform .15s ease, background .2s ease;
+    position: relative;
+  }
+  .rec-btn:hover { transform: translateY(-2px); }
+  .rec-btn:active { transform: translateY(0); }
+  .rec-btn svg { width: 34px; height: 34px; }
+
+  .rec-btn.recording { background: var(--rec); }
+  .rec-btn.recording::after {
+    content: ""; position: absolute; inset: -8px;
+    border-radius: 50%;
+    border: 2px solid var(--rec);
+    animation: pulse 1.4s ease-out infinite;
+  }
+  @keyframes pulse {
+    0%   { transform: scale(1);   opacity: .7; }
+    100% { transform: scale(1.35); opacity: 0; }
+  }
+  .rec-btn:disabled { opacity: .55; cursor: default; transform: none; }
+
+  .status { color: var(--ink-soft); font-size: 16px; min-height: 24px; font-style: italic; }
+  .status.error { color: var(--rec); font-style: normal; }
+
+  /* ---- summary ---- */
+  .summary {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 20px 22px;
+    margin: 28px 0;
+    box-shadow: var(--shadow);
+  }
+  .summary-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 14px;
+  }
+  .summary-head h2 {
+    font-family: 'Fraunces', serif; font-weight: 500; font-size: 15px;
+    text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-soft);
+  }
+  .summary-total { font-family: 'Fraunces', serif; font-size: 24px; font-weight: 600; }
+  .cat-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 16px; }
+  .cat-row .name { color: var(--ink-soft); text-transform: capitalize; }
+  .cat-row .amt { font-variant-numeric: tabular-nums; }
+
+  /* ---- list ---- */
+  .list-head {
+    font-family: 'Fraunces', serif; font-weight: 500; font-size: 15px;
+    text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-soft);
+    margin: 8px 4px 12px;
+  }
+
+  .expense {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    margin-bottom: 10px;
+    display: flex; align-items: flex-start; gap: 14px;
+    box-shadow: var(--shadow);
+    animation: rise .4s ease both;
+  }
+  @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+  .expense .amount {
+    font-family: 'Fraunces', serif; font-weight: 600; font-size: 22px;
+    font-variant-numeric: tabular-nums; min-width: 84px;
+  }
+  .expense .meta { flex: 1; }
+  .expense .store { font-weight: 500; }
+  .expense .tags { color: var(--ink-soft); font-size: 15px; margin-top: 2px; }
+  .expense .tags .cat {
+    display: inline-block; background: var(--bg); border: 1px solid var(--line);
+    border-radius: 999px; padding: 1px 10px; font-size: 13px; text-transform: capitalize;
+    font-family: 'Fraunces', serif; letter-spacing: .02em;
+  }
+  .expense .notes { color: var(--ink-soft); font-size: 15px; margin-top: 4px; font-style: italic; }
+
+  .del {
+    background: none; border: none; cursor: pointer; color: var(--clay-soft);
+    font-size: 20px; line-height: 1; padding: 2px 4px; border-radius: 6px;
+    transition: color .15s, background .15s;
+  }
+  .del:hover { color: var(--rec); background: var(--bg); }
+
+  .empty { text-align: center; color: var(--ink-soft); font-style: italic; padding: 24px; }
+
+  footer { text-align: center; margin-top: 40px; color: var(--ink-soft); font-size: 14px; }
+  footer code { font-family: ui-monospace, monospace; background: var(--surface); padding: 1px 6px; border-radius: 5px; border: 1px solid var(--line); }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Voice Expense Tracker<span class="dot">.</span></h1>
+      <p class="tagline">speak an expense, watch it logged</p>
+    </header>
+
+    <div class="recorder">
+      <button id="recBtn" class="rec-btn" aria-label="Record">
+        <svg id="micIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+          <line x1="12" y1="19" x2="12" y2="23"/>
+          <line x1="8" y1="23" x2="16" y2="23"/>
+        </svg>
+      </button>
+      <div id="status" class="status">tap to record</div>
+    </div>
+
+    <div id="summary" class="summary" hidden>
+      <div class="summary-head">
+        <h2>Last 30 days</h2>
+        <span id="summaryTotal" class="summary-total">$0.00</span>
+      </div>
+      <div id="summaryRows"></div>
+    </div>
+
+    <div class="list-head">Recent expenses</div>
+    <div id="list"></div>
+
+    <footer>API at <code>/docs</code></footer>
+  </div>
+
+<script>
+const API = "";  // same origin
+
+const recBtn = document.getElementById("recBtn");
+const statusEl = document.getElementById("status");
+const listEl = document.getElementById("list");
+const micIcon = document.getElementById("micIcon");
+
+let mediaRecorder = null;
+let chunks = [];
+let recording = false;
+
+const stopIcon = '<rect x="6" y="6" width="12" height="12" rx="2"></rect>';
+const micIconSvg = '<path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line>';
+
+function setStatus(msg, isError=false) {
+  statusEl.textContent = msg;
+  statusEl.classList.toggle("error", isError);
+}
+
+function money(n) {
+  return "$" + Number(n).toFixed(2);
+}
+
+recBtn.addEventListener("click", async () => {
+  if (!recording) {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+      chunks = [];
+      mediaRecorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+      mediaRecorder.onstop = handleStop;
+      mediaRecorder.start();
+      recording = true;
+      recBtn.classList.add("recording");
+      micIcon.innerHTML = stopIcon;
+      setStatus("recording… tap to stop");
+    } catch (err) {
+      setStatus("microphone access denied", true);
+    }
+  } else {
+    mediaRecorder.stop();
+    mediaRecorder.stream.getTracks().forEach(t => t.stop());
+    recording = false;
+    recBtn.classList.remove("recording");
+    micIcon.innerHTML = micIconSvg;
+  }
+});
+
+async function handleStop() {
+  const blob = new Blob(chunks, { type: "audio/webm" });
+  setStatus("transcribing…");
+  recBtn.disabled = true;
+
+  const form = new FormData();
+  form.append("audio", blob, "recording.webm");
+
+  try {
+    const res = await fetch(API + "/api/expenses", { method: "POST", body: form });
+    if (!res.ok) {
+      const detail = await res.json().catch(() => ({}));
+      throw new Error(detail.detail || ("HTTP " + res.status));
+    }
+    const data = await res.json();
+    const n = (data.expenses || []).length;
+    setStatus(n + (n === 1 ? " expense added" : " expenses added"));
+    await refresh();
+  } catch (err) {
+    setStatus(err.message || "something went wrong", true);
+  } finally {
+    recBtn.disabled = false;
+  }
+}
+
+function renderExpense(e) {
+  const div = document.createElement("div");
+  div.className = "expense";
+  const tags = [];
+  if (e.store) tags.push(`<span>${escapeHtml(e.store)}</span>`);
+  if (e.category) tags.push(`<span class="cat">${escapeHtml(e.category)}</span>`);
+  div.innerHTML = `
+    <div class="amount">${money(e.amount)}</div>
+    <div class="meta">
+      <div class="tags">${tags.join(" · ") || "—"}</div>
+      ${e.notes ? `<div class="notes">${escapeHtml(e.notes)}</div>` : ""}
+    </div>
+    <button class="del" title="Delete" data-id="${e.id}">×</button>
+  `;
+  div.querySelector(".del").addEventListener("click", () => del(e.id, div));
+  return div;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+async function del(id, el) {
+  if (!confirm("Delete this expense?")) return;
+  try {
+    const res = await fetch(API + "/api/expenses/" + id, { method: "DELETE" });
+    if (res.status !== 204) throw new Error("delete failed");
+    el.remove();
+    loadSummary();
+    if (!listEl.children.length) showEmpty();
+  } catch (err) {
+    setStatus("could not delete", true);
+  }
+}
+
+function showEmpty() {
+  listEl.innerHTML = '<div class="empty">No expenses yet — record your first one above.</div>';
+}
+
+async function loadList() {
+  try {
+    const res = await fetch(API + "/api/expenses?limit=25");
+    const data = await res.json();
+    const items = data.expenses || [];
+    listEl.innerHTML = "";
+    if (!items.length) { showEmpty(); return; }
+    items.forEach(e => listEl.appendChild(renderExpense(e)));
+  } catch (err) {
+    listEl.innerHTML = '<div class="empty">Could not load expenses.</div>';
+  }
+}
+
+async function loadSummary() {
+  try {
+    const res = await fetch(API + "/api/expenses/summary?days=30");
+    const data = await res.json();
+    const rows = data["by category"] || data.by_category || [];
+    const summaryEl = document.getElementById("summary");
+    const rowsEl = document.getElementById("summaryRows");
+    if (!rows.length) { summaryEl.hidden = true; return; }
+    document.getElementById("summaryTotal").textContent = money(data.total || 0);
+    rowsEl.innerHTML = rows.map(r => `
+      <div class="cat-row">
+        <span class="name">${escapeHtml(r.category || "uncategorized")}</span>
+        <span class="amt">${money(r.total_spent)}</span>
+      </div>`).join("");
+    summaryEl.hidden = false;
+  } catch (err) {
+    document.getElementById("summary").hidden = true;
+  }
+}
+
+async function refresh() {
+  await Promise.all([loadList(), loadSummary()]);
+}
+
+refresh();
+</script>
+</body>
+</html>

@@ -1,13 +1,20 @@
 from dotenv import load_dotenv
 load_dotenv()
 from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi.responses import FileResponse
+from pathlib import Path
 from app.groq_client import transcribe_audio, parse_expense
 from app.database import save_expense, get_all_expenses, get_summary, get_expense, delete_expense
 
 app = FastAPI()
+FRONTEND = Path(__file__).parent.parent / "frontend" / "index.html"
 
 @app.get("/")
 async def root():
+    return FileResponse(FRONTEND)
+
+@app.get("/health")
+async def get_health():
     return {"status":"Running"}
 
 @app.post("/api/expenses", status_code=201)
