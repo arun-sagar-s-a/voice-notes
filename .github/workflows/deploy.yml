@@ -38,6 +38,10 @@ jobs:
             "cd ~/voice-notes && \
              echo 'GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}' > .env && \
              echo 'DB_PATH=/data/expenses.db' >> .env && \
+             echo 'LANGFUSE_PUBLIC_KEY=${{ secrets.LANGFUSE_PUBLIC_KEY }}' >> .env && \
+             echo 'LANGFUSE_SECRET_KEY=${{ secrets.LANGFUSE_SECRET_KEY }}' >> .env && \
+             echo 'LANGFUSE_BASE_URL=${{ secrets.LANGFUSE_BASE_URL }}' >> .env && \
+             echo 'LANGFUSE_TRACING_ENVIRONMENT=production' >> .env && \
              docker compose up -d --build && \
              docker image prune -f"
 

@@ -2,6 +2,7 @@
 
 import os, json, httpx, yaml
 from pathlib import Path
+from langfuse import get_client 
 
 API_KEY             = os.environ["GROQ_API_KEY"]
 BASE_URL            = "https://api.groq.com/openai/v1"
@@ -12,6 +13,8 @@ TRANSCRIPTION_MODEL = "whisper-large-v3-turbo"
 FALLBACK_LLM_MODEL  = ["llama-3.3-70b-versatile", "meta-llama/llama-4-scout-17b-16e-instruct"] 
 
 PROMPTS_DIR = Path(__file__).parent.parent/"prompts"
+
+langfuse = get_client()   # auto-reads LANGFUSE_* env vars
 
 def load_prompt(name: str) -> dict:
     config_path = PROMPTS_DIR / f"{name}.yaml"
@@ -25,22 +28,29 @@ def load_prompt(name: str) -> dict:
     return config
 
 async def transcribe_audio(audio_bytes: bytes, filename: str) -> dict:
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        resp = await client.post(
-            f"{BASE_URL}/audio/transcriptions",
-            headers={"Authorization": f"Bearer {API_KEY}"},
-            files={"file":(filename, audio_bytes)},
-            data={
-                "model":TRANSCRIPTION_MODEL,
-                "response_format":"verbose_json",
-            },
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        return{
-            "text": data["text"],
-            "duration":data.get("duration",0.0)
-        }
+
+    with langfuse.start_as_current_observation(
+        as_type="generation", name="whisper-transcription",
+        model=TRANSCRIPTION_MODEL, input={"filename":filename, "audio_bytes": len(audio_bytes)}
+    ) as gen:
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            resp = await client.post(
+                f"{BASE_URL}/audio/transcriptions",
+                headers={"Authorization": f"Bearer {API_KEY}"},
+                files={"file":(filename, audio_bytes)},
+                data={
+                    "model":TRANSCRIPTION_MODEL,
+                    "response_format":"verbose_json",
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            result = {
+                "text": data["text"],
+                "duration":data.get("duration",0.0)
+            }
+            gen.update(output=result)
+            return result
     
 async def parse_expense(transcript: str) -> dict:
     prompt_config = load_prompt("parse_expenses")
@@ -50,29 +60,48 @@ async def parse_expense(transcript: str) -> dict:
 
     for model in FALLBACK_LLM_MODEL:
         try:
-            async with httpx.AsyncClient(timeout=60.0) as client:
-                resp = await client.post(
-                    f"{BASE_URL}/chat/completions",
-                    headers={
-                        "Authorization": f"Bearer {API_KEY}",
-                        "Content-Type": "application/json"
-                    },
-                    json={
-                        "model":model,
-                        "messages": [
-                            {"role":"system","content": system_prompt},
-                            {"role":"user","content":f"Parse this expense:\n\n {transcript}"}
-                        ],
-                        "temperature": temperature,
-                    }
-                )
-                resp.raise_for_status()
-                content = resp.json()["choices"][0]["message"]["content"]
-                content = content.strip()
-                if content.startswith("```"):
-                    content = content.split("\n", 1)[1].rsplit("```", 1)[0]
-
-                return json.loads(content)
+            with langfuse.start_as_current_observation(
+            as_type="generation", name="llama-parse",
+            model=model, input=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": f"Parse this expense:\n\n {transcript}"}
+            ],
+            model_parameters={"temperature":temperature}
+            ) as gen:
+                async with httpx.AsyncClient(timeout=60.0) as client:
+                    resp = await client.post(
+                        f"{BASE_URL}/chat/completions",
+                        headers={
+                            "Authorization": f"Bearer {API_KEY}",
+                            "Content-Type": "application/json"
+                        },
+                        json={
+                            "model":model,
+                            "messages": [
+                                {"role":"system","content": system_prompt},
+                                {"role":"user","content":f"Parse this expense:\n\n {transcript}"}
+                            ],
+                            "temperature": temperature,
+                        }
+                    )
+                    resp.raise_for_status()
+                    body = resp.json()
+                    content = body["choices"][0]["message"]["content"]
+                    content = content.strip()
+                    if content.startswith("```"):
+                        content = content.split("\n", 1)[1].rsplit("```", 1)[0]
+                    
+                    parsed = json.loads(content)
+                    # NEW: record output + token usage (Groq returns OpenAI-style usage)
+                    usage = body.get("usage", {})
+                    gen.update(output=parsed,
+                               usage_details={
+                            "input": usage.get("prompt_tokens"),
+                            "output": usage.get("completion_tokens"),
+                            "total": usage.get("total_tokens"),
+                            }
+                        )
+                    return parsed
             
         except Exception as e:
             errors.append(f"{model}: {type(e).__name__}: {e}")

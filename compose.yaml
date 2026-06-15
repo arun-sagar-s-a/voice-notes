@@ -6,6 +6,10 @@ services:
     environment:
       - GROQ_API_KEY=${GROQ_API_KEY}
       - DB_PATH=/data/expenses.db
+      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
+      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
+      - LANGFUSE_BASE_URL=${LANGFUSE_BASE_URL}
+      - LANGFUSE_TRACING_ENVIRONMENT=${LANGFUSE_TRACING_ENVIRONMENT}
     volumes:
       - notes-data:/data
 

@@ -5,6 +5,7 @@ from fastapi.responses import FileResponse
 from pathlib import Path
 from app.groq_client import transcribe_audio, parse_expense
 from app.database import save_expense, get_all_expenses, get_summary, get_expense, delete_expense
+from langfuse import observe
 
 app = FastAPI()
 FRONTEND = Path(__file__).parent.parent / "frontend" / "index.html"
@@ -18,6 +19,7 @@ async def get_health():
     return {"status":"Running"}
 
 @app.post("/api/expenses", status_code=201)
+@observe(name="create-expense", as_type="span")
 async def create_expense(audio: UploadFile = File(...)):
     audio_bytes = await audio.read()
     if len(audio_bytes) > 25 * 1024 * 1024:
